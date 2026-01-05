@@ -94,7 +94,7 @@ public sealed class MainForm : Form
             Width = 200,
             FlowDirection = FlowDirection.TopDown,
             Padding = new Padding(10),
-            AutoScroll = true,
+            AutoScroll = false,
             WrapContents = false
         };
         buttonPanel.Controls.AddRange(new Control[]
