@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Windows.Forms;
 
 namespace KepwareCsvGenerator;
@@ -14,8 +13,6 @@ public sealed class MainForm : Form
     private readonly Button _addFolderButton;
     private readonly Button _addTagButton;
     private readonly Button _exportButton;
-    private readonly Button _saveButton;
-    private readonly Button _loadButton;
     private readonly Button _removeButton;
     private TreeNode? _dragNode;
 
@@ -74,24 +71,10 @@ public sealed class MainForm : Form
         };
         _exportButton.Click += (_, _) => ExportCsv();
 
-        _saveButton = new Button
-        {
-            Text = "Save JSON",
-            Width = 120
-        };
-        _saveButton.Click += (_, _) => SaveHierarchy();
-
-        _loadButton = new Button
-        {
-            Text = "Load JSON",
-            Width = 120
-        };
-        _loadButton.Click += (_, _) => LoadHierarchy();
-
         var buttonPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
-            Width = 180,
+            Dock = DockStyle.Right,
+            Width = 150,
             FlowDirection = FlowDirection.TopDown,
             Padding = new Padding(10)
         };
@@ -100,23 +83,11 @@ public sealed class MainForm : Form
             _addFolderButton,
             _addTagButton,
             _removeButton,
-            _saveButton,
-            _loadButton,
             _exportButton
         });
 
-        var layout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1
-        };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200));
-        layout.Controls.Add(_treeView, 0, 0);
-        layout.Controls.Add(buttonPanel, 1, 0);
-
-        Controls.Add(layout);
+        Controls.Add(_treeView);
+        Controls.Add(buttonPanel);
         Controls.Add(headerLabel);
 
         InitializeRoot();
@@ -221,53 +192,6 @@ public sealed class MainForm : Form
         File.WriteAllText(saveDialog.FileName, csv);
         MessageBox.Show("CSV exported successfully.", "Export Complete", MessageBoxButtons.OK,
             MessageBoxIcon.Information);
-    }
-
-    private void SaveHierarchy()
-    {
-        var root = _treeView.Nodes[0];
-        var model = HierarchyNode.FromTreeNode(root);
-        using var saveDialog = new SaveFileDialog
-        {
-            Filter = "JSON Files (*.json)|*.json",
-            FileName = "kepware_hierarchy.json"
-        };
-
-        if (saveDialog.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
-
-        var json = JsonSerializer.Serialize(model, JsonSerializerOptionsFactory.Create());
-        File.WriteAllText(saveDialog.FileName, json);
-        MessageBox.Show("Hierarchy saved.", "Save Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
-    }
-
-    private void LoadHierarchy()
-    {
-        using var openDialog = new OpenFileDialog
-        {
-            Filter = "JSON Files (*.json)|*.json"
-        };
-
-        if (openDialog.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
-
-        var json = File.ReadAllText(openDialog.FileName);
-        var model = JsonSerializer.Deserialize<HierarchyNode>(json, JsonSerializerOptionsFactory.Create());
-        if (model == null)
-        {
-            MessageBox.Show("Invalid JSON file.", "Load Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-
-        _treeView.Nodes.Clear();
-        var rootNode = model.ToTreeNode();
-        _treeView.Nodes.Add(rootNode);
-        _treeView.SelectedNode = rootNode;
-        rootNode.Expand();
     }
 
     private TreeNode? GetSelectedContainerNode()
@@ -594,57 +518,4 @@ public sealed class TagDialog : Form
     public TagDataType SelectedDataType => Enum.TryParse<TagDataType>(_dataTypeBox.SelectedItem?.ToString(), out var value)
         ? value
         : TagDataType.String;
-}
-
-public sealed class HierarchyNode
-{
-    public string Name { get; init; } = string.Empty;
-    public bool IsFolder { get; init; }
-    public TagDataType DataType { get; init; }
-    public List<HierarchyNode> Children { get; init; } = new();
-
-    public static HierarchyNode FromTreeNode(TreeNode node)
-    {
-        var metadata = node.Tag as NodeMetadata;
-        var model = new HierarchyNode
-        {
-            Name = metadata?.Name ?? node.Text,
-            IsFolder = metadata?.IsFolder ?? true,
-            DataType = metadata?.DataType ?? TagDataType.String
-        };
-
-        foreach (TreeNode child in node.Nodes)
-        {
-            model.Children.Add(FromTreeNode(child));
-        }
-
-        return model;
-    }
-
-    public TreeNode ToTreeNode()
-    {
-        var metadata = IsFolder ? NodeMetadata.Folder(Name) : NodeMetadata.Tag(Name, DataType);
-        var node = new TreeNode(Name)
-        {
-            Tag = metadata
-        };
-
-        foreach (var child in Children)
-        {
-            node.Nodes.Add(child.ToTreeNode());
-        }
-
-        return node;
-    }
-}
-
-public static class JsonSerializerOptionsFactory
-{
-    public static JsonSerializerOptions Create()
-    {
-        return new JsonSerializerOptions
-        {
-            WriteIndented = true
-        };
-    }
 }
