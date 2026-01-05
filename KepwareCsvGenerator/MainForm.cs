@@ -90,11 +90,12 @@ public sealed class MainForm : Form
 
         var buttonPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
             Width = 200,
             FlowDirection = FlowDirection.TopDown,
             Padding = new Padding(10),
-            AutoScroll = true
+            AutoScroll = true,
+            WrapContents = false
         };
         buttonPanel.Controls.AddRange(new Control[]
         {
@@ -106,18 +107,15 @@ public sealed class MainForm : Form
             _exportButton
         });
 
-        var splitContainer = new SplitContainer
+        var rightPanel = new Panel
         {
-            Dock = DockStyle.Fill,
-            FixedPanel = FixedPanel.Panel2,
-            IsSplitterFixed = true,
-            SplitterWidth = 4
+            Dock = DockStyle.Right,
+            Width = 220
         };
-        splitContainer.Panel1.Controls.Add(_treeView);
-        splitContainer.Panel2.Controls.Add(buttonPanel);
-        splitContainer.SplitterDistance = Width - 220;
+        rightPanel.Controls.Add(buttonPanel);
 
-        Controls.Add(splitContainer);
+        Controls.Add(_treeView);
+        Controls.Add(rightPanel);
         Controls.Add(headerLabel);
 
         InitializeRoot();
