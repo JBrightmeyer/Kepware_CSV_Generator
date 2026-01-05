@@ -88,34 +88,48 @@ public sealed class MainForm : Form
         };
         _loadButton.Click += (_, _) => LoadHierarchy();
 
-        var buttonPanel = new FlowLayoutPanel
+        var buttonPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Width = 200,
-            FlowDirection = FlowDirection.TopDown,
-            Padding = new Padding(10),
-            AutoScroll = false,
-            WrapContents = false
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 6,
+            Padding = new Padding(10)
         };
-        buttonPanel.Controls.AddRange(new Control[]
-        {
-            _addFolderButton,
-            _addTagButton,
-            _removeButton,
-            _saveButton,
-            _loadButton,
-            _exportButton
-        });
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        buttonPanel.Controls.Add(_addFolderButton, 0, 0);
+        buttonPanel.Controls.Add(_addTagButton, 0, 1);
+        buttonPanel.Controls.Add(_removeButton, 0, 2);
+        buttonPanel.Controls.Add(_saveButton, 0, 3);
+        buttonPanel.Controls.Add(_loadButton, 0, 4);
+        buttonPanel.Controls.Add(_exportButton, 0, 5);
 
         var rightPanel = new Panel
         {
-            Dock = DockStyle.Right,
-            Width = 220
+            Dock = DockStyle.Fill,
+            Padding = new Padding(0, 10, 10, 10)
         };
         rightPanel.Controls.Add(buttonPanel);
 
-        Controls.Add(_treeView);
-        Controls.Add(rightPanel);
+        var mainLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1
+        };
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+        mainLayout.Controls.Add(_treeView, 0, 0);
+        mainLayout.Controls.Add(rightPanel, 1, 0);
+
+        Controls.Add(mainLayout);
         Controls.Add(headerLabel);
 
         InitializeRoot();
