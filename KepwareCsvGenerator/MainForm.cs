@@ -52,6 +52,7 @@ public sealed class MainForm : Form
         _treeView.DragEnter += TreeViewOnDragEnter;
         _treeView.DragDrop += TreeViewOnDragDrop;
         _treeView.NodeMouseClick += TreeViewOnNodeMouseClick;
+        _treeView.NodeMouseDoubleClick += TreeViewOnNodeMouseDoubleClick;
         ConfigureContextMenu();
 
         _addFolderButton = new Button
@@ -497,6 +498,30 @@ public sealed class MainForm : Form
     {
         _treeView.SelectedNode = e.Node;
     }
+
+    private void TreeViewOnNodeMouseDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
+    {
+        _treeView.SelectedNode = e.Node;
+        if (e.Node?.Tag is not NodeMetadata metadata)
+        {
+            return;
+        }
+
+        var isFolder = metadata.IsFolder;
+        var dialogTitle = isFolder ? "Rename Folder" : "Rename Tag";
+        var dialogLabel = isFolder ? "Folder name:" : "Tag name:";
+        using var dialog = new NameDialog(dialogTitle, dialogLabel, metadata.Name);
+        if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.EntityName))
+        {
+            return;
+        }
+
+        var newName = dialog.EntityName;
+        e.Node.Text = newName;
+        e.Node.Tag = isFolder
+            ? NodeMetadata.Folder(newName)
+            : NodeMetadata.Tag(newName, metadata.DataType);
+    }
 }
 
 public sealed class NodeMetadata
@@ -597,7 +622,7 @@ public sealed class NameDialog : Form
 {
     private readonly TextBox _nameBox;
 
-    public NameDialog(string title, string label)
+    public NameDialog(string title, string label, string initialText = "")
     {
         Text = title;
         Width = 360;
@@ -616,7 +641,8 @@ public sealed class NameDialog : Form
 
         _nameBox = new TextBox
         {
-            Dock = DockStyle.Top
+            Dock = DockStyle.Top,
+            Text = initialText
         };
 
         var buttonPanel = new FlowLayoutPanel
