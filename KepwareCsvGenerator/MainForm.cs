@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -13,10 +14,13 @@ public sealed class MainForm : Form
     private readonly TreeView _treeView;
     private readonly Button _addFolderButton;
     private readonly Button _addTagButton;
+    private readonly Button _duplicateButton;
     private readonly Button _exportButton;
     private readonly Button _saveButton;
     private readonly Button _loadButton;
     private readonly Button _removeButton;
+    private readonly ContextMenuStrip _contextMenu = new();
+    private readonly ToolStripMenuItem _duplicateMenuItem = new("Duplicate Folder");
     private TreeNode? _dragNode;
 
     public MainForm()
@@ -45,6 +49,7 @@ public sealed class MainForm : Form
         _treeView.DragEnter += TreeViewOnDragEnter;
         _treeView.DragDrop += TreeViewOnDragDrop;
         _treeView.NodeMouseClick += TreeViewOnNodeMouseClick;
+        ConfigureContextMenu();
 
         _addFolderButton = new Button
         {
@@ -59,6 +64,13 @@ public sealed class MainForm : Form
             Width = 120
         };
         _addTagButton.Click += (_, _) => AddTag();
+
+        _duplicateButton = new Button
+        {
+            Text = "Duplicate Folder",
+            Width = 120
+        };
+        _duplicateButton.Click += (_, _) => DuplicateSelectedFolder();
 
         _removeButton = new Button
         {
@@ -94,7 +106,7 @@ public sealed class MainForm : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 7,
             Padding = new Padding(10)
         };
         buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -104,12 +116,14 @@ public sealed class MainForm : Form
         buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        buttonPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         buttonPanel.Controls.Add(_addFolderButton, 0, 0);
         buttonPanel.Controls.Add(_addTagButton, 0, 1);
-        buttonPanel.Controls.Add(_removeButton, 0, 2);
-        buttonPanel.Controls.Add(_saveButton, 0, 3);
-        buttonPanel.Controls.Add(_loadButton, 0, 4);
-        buttonPanel.Controls.Add(_exportButton, 0, 5);
+        buttonPanel.Controls.Add(_duplicateButton, 0, 2);
+        buttonPanel.Controls.Add(_removeButton, 0, 3);
+        buttonPanel.Controls.Add(_saveButton, 0, 4);
+        buttonPanel.Controls.Add(_loadButton, 0, 5);
+        buttonPanel.Controls.Add(_exportButton, 0, 6);
 
         var rightPanel = new Panel
         {
@@ -144,6 +158,21 @@ public sealed class MainForm : Form
         _treeView.Nodes.Add(root);
         _treeView.SelectedNode = root;
         root.Expand();
+    }
+
+    private void ConfigureContextMenu()
+    {
+        _duplicateMenuItem.Click += (_, _) => DuplicateSelectedFolder();
+        _contextMenu.Items.Add(_duplicateMenuItem);
+        _contextMenu.Opening += (_, e) =>
+        {
+            var selected = _treeView.SelectedNode;
+            var enabled = selected?.Tag is NodeMetadata { IsFolder: true } && selected.Parent != null;
+            _duplicateMenuItem.Enabled = enabled;
+            e.Cancel = !enabled;
+        };
+
+        _treeView.ContextMenuStrip = _contextMenu;
     }
 
     private void AddFolder()
@@ -196,6 +225,23 @@ public sealed class MainForm : Form
         parent.Nodes.Add(node);
         parent.Expand();
         _treeView.SelectedNode = node;
+    }
+
+    private void DuplicateSelectedFolder()
+    {
+        var selected = _treeView.SelectedNode;
+        if (selected?.Tag is not NodeMetadata { IsFolder: true } || selected.Parent == null)
+        {
+            MessageBox.Show("Select a folder (not the root) to duplicate.", "Invalid Selection", MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var newName = GenerateUniqueFolderName(selected.Text, selected.Parent.Nodes);
+        var clone = CloneSubtree(selected, newName);
+        selected.Parent.Nodes.Add(clone);
+        selected.Parent.Expand();
+        _treeView.SelectedNode = clone;
     }
 
     private void RemoveSelected()
@@ -327,6 +373,45 @@ public sealed class MainForm : Form
 
         var fullName = string.Join('.', pathSegments.Append(metadata.Name));
         output.Add(new TagRecord(fullName, metadata.DataType));
+    }
+
+    private static string GenerateUniqueFolderName(string baseName, TreeNodeCollection siblings)
+    {
+        var index = 1;
+        string candidate;
+        do
+        {
+            candidate = $"{baseName} ({index})";
+            index++;
+        } while (siblings.Cast<TreeNode>().Any(node =>
+                     string.Equals(node.Text, candidate, StringComparison.OrdinalIgnoreCase)));
+
+        return candidate;
+    }
+
+    private static TreeNode CloneSubtree(TreeNode source, string? rootNameOverride = null)
+    {
+        if (source.Tag is not NodeMetadata metadata)
+        {
+            return (TreeNode)source.Clone();
+        }
+
+        var name = rootNameOverride ?? metadata.Name;
+        var cloneMetadata = metadata.IsFolder
+            ? NodeMetadata.Folder(name)
+            : NodeMetadata.Tag(name, metadata.DataType);
+
+        var clone = new TreeNode(name)
+        {
+            Tag = cloneMetadata
+        };
+
+        foreach (TreeNode child in source.Nodes)
+        {
+            clone.Nodes.Add(CloneSubtree(child));
+        }
+
+        return clone;
     }
 
     private void TreeViewOnItemDrag(object? sender, ItemDragEventArgs e)
