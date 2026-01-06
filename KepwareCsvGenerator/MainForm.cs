@@ -29,6 +29,8 @@ public sealed class MainForm : Form
         Width = 900;
         Height = 600;
         StartPosition = FormStartPosition.CenterScreen;
+        AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
 
         var headerLabel = new Label
         {
@@ -138,8 +140,8 @@ public sealed class MainForm : Form
             ColumnCount = 2,
             RowCount = 1
         };
-        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
         mainLayout.Controls.Add(_treeView, 0, 0);
         mainLayout.Controls.Add(rightPanel, 1, 0);
 
