@@ -19,8 +19,8 @@ public sealed class MainForm : Form
     private readonly Button _saveButton;
     private readonly Button _loadButton;
     private readonly Button _removeButton;
-    private readonly ContextMenuStrip _contextMenu;
-    private readonly ToolStripMenuItem _duplicateMenuItem;
+    private readonly ContextMenuStrip _contextMenu = new();
+    private readonly ToolStripMenuItem _duplicateMenuItem = new("Duplicate Folder");
     private TreeNode? _dragNode;
 
     public MainForm()
@@ -162,8 +162,6 @@ public sealed class MainForm : Form
 
     private void ConfigureContextMenu()
     {
-        _contextMenu = new ContextMenuStrip();
-        _duplicateMenuItem = new ToolStripMenuItem("Duplicate Folder");
         _duplicateMenuItem.Click += (_, _) => DuplicateSelectedFolder();
         _contextMenu.Items.Add(_duplicateMenuItem);
         _contextMenu.Opening += (_, e) =>
