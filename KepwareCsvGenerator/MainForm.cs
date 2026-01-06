@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -58,6 +59,7 @@ public sealed class MainForm : Form
             Text = "Add Folder",
             Width = 120
         };
+        StyleActionButton(_addFolderButton);
         _addFolderButton.Click += (_, _) => AddFolder();
 
         _addTagButton = new Button
@@ -65,6 +67,7 @@ public sealed class MainForm : Form
             Text = "Add Tag",
             Width = 120
         };
+        StyleActionButton(_addTagButton);
         _addTagButton.Click += (_, _) => AddTag();
 
         _duplicateButton = new Button
@@ -72,6 +75,7 @@ public sealed class MainForm : Form
             Text = "Duplicate Folder",
             Width = 120
         };
+        StyleActionButton(_duplicateButton);
         _duplicateButton.Click += (_, _) => DuplicateSelectedFolder();
 
         _removeButton = new Button
@@ -79,6 +83,7 @@ public sealed class MainForm : Form
             Text = "Remove",
             Width = 120
         };
+        StyleActionButton(_removeButton);
         _removeButton.Click += (_, _) => RemoveSelected();
 
         _exportButton = new Button
@@ -86,6 +91,7 @@ public sealed class MainForm : Form
             Text = "Export CSV",
             Width = 120
         };
+        StyleActionButton(_exportButton);
         _exportButton.Click += (_, _) => ExportCsv();
 
         _saveButton = new Button
@@ -93,6 +99,7 @@ public sealed class MainForm : Form
             Text = "Save JSON",
             Width = 120
         };
+        StyleActionButton(_saveButton);
         _saveButton.Click += (_, _) => SaveHierarchy();
 
         _loadButton = new Button
@@ -100,6 +107,7 @@ public sealed class MainForm : Form
             Text = "Load JSON",
             Width = 120
         };
+        StyleActionButton(_loadButton);
         _loadButton.Click += (_, _) => LoadHierarchy();
 
         var buttonPanel = new TableLayoutPanel
@@ -414,6 +422,15 @@ public sealed class MainForm : Form
         }
 
         return clone;
+    }
+
+    private static void StyleActionButton(Button button)
+    {
+        button.AutoSize = true;
+        button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        button.MinimumSize = new Size(120, 36);
+        button.Padding = new Padding(6, 8, 6, 8);
+        button.Anchor = AnchorStyles.Left | AnchorStyles.Right;
     }
 
     private void TreeViewOnItemDrag(object? sender, ItemDragEventArgs e)
