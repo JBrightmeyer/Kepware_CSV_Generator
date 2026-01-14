@@ -227,7 +227,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        var metadata = NodeMetadata.Tag(dialog.TagName, dialog.SelectedDataType);
+        var metadata = NodeMetadata.Tag(dialog.TagName, dialog.SelectedDataType, dialog.DefaultValue);
         var node = new TreeNode(dialog.TagName)
         {
             Tag = metadata
@@ -383,7 +383,7 @@ public sealed class MainForm : Form
         }
 
         var fullName = string.Join('.', pathSegments.Append(metadata.Name));
-        output.Add(new TagRecord(fullName, metadata.DataType));
+        output.Add(new TagRecord(fullName, metadata.DataType, metadata.DefaultValue));
     }
 
     private static string GenerateUniqueFolderName(string baseName, TreeNodeCollection siblings)
@@ -410,7 +410,7 @@ public sealed class MainForm : Form
         var name = rootNameOverride ?? metadata.Name;
         var cloneMetadata = metadata.IsFolder
             ? NodeMetadata.Folder(name)
-            : NodeMetadata.Tag(name, metadata.DataType);
+            : NodeMetadata.Tag(name, metadata.DataType, metadata.DefaultValue);
 
         var clone = new TreeNode(name)
         {
@@ -508,19 +508,31 @@ public sealed class MainForm : Form
         }
 
         var isFolder = metadata.IsFolder;
-        var dialogTitle = isFolder ? "Rename Folder" : "Rename Tag";
-        var dialogLabel = isFolder ? "Folder name:" : "Tag name:";
-        using var dialog = new NameDialog(dialogTitle, dialogLabel, metadata.Name);
-        if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.EntityName))
+        if (isFolder)
+        {
+            var dialogTitle = "Rename Folder";
+            var dialogLabel = "Folder name:";
+            using var dialog = new NameDialog(dialogTitle, dialogLabel, metadata.Name);
+            if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.EntityName))
+            {
+                return;
+            }
+
+            var newName = dialog.EntityName;
+            e.Node.Text = newName;
+            e.Node.Tag = NodeMetadata.Folder(newName);
+            return;
+        }
+
+        using var tagDialog = new TagDialog("Edit Tag", metadata.Name, metadata.DataType, metadata.DefaultValue);
+        if (tagDialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(tagDialog.TagName))
         {
             return;
         }
 
-        var newName = dialog.EntityName;
-        e.Node.Text = newName;
-        e.Node.Tag = isFolder
-            ? NodeMetadata.Folder(newName)
-            : NodeMetadata.Tag(newName, metadata.DataType);
+        var updatedName = tagDialog.TagName;
+        e.Node.Text = updatedName;
+        e.Node.Tag = NodeMetadata.Tag(updatedName, tagDialog.SelectedDataType, tagDialog.DefaultValue);
     }
 }
 
@@ -529,17 +541,20 @@ public sealed class NodeMetadata
     public string Name { get; }
     public bool IsFolder { get; }
     public TagDataType DataType { get; }
+    public string DefaultValue { get; }
 
-    private NodeMetadata(string name, bool isFolder, TagDataType dataType)
+    private NodeMetadata(string name, bool isFolder, TagDataType dataType, string defaultValue)
     {
         Name = name;
         IsFolder = isFolder;
         DataType = dataType;
+        DefaultValue = defaultValue;
     }
 
-    public static NodeMetadata Folder(string name) => new(name, true, TagDataType.String);
+    public static NodeMetadata Folder(string name) => new(name, true, TagDataType.String, string.Empty);
 
-    public static NodeMetadata Tag(string name, TagDataType dataType) => new(name, false, dataType);
+    public static NodeMetadata Tag(string name, TagDataType dataType, string defaultValue) =>
+        new(name, false, dataType, defaultValue);
 }
 
 public enum TagDataType
@@ -549,7 +564,7 @@ public enum TagDataType
     Boolean
 }
 
-public sealed record TagRecord(string Name, TagDataType DataType);
+public sealed record TagRecord(string Name, TagDataType DataType, string DefaultValue);
 
 public static class CsvBuilder
 {
@@ -579,7 +594,10 @@ public static class CsvBuilder
             builder.Append(',');
             builder.Append(dataTypeString);
             builder.Append(",1,R/W,100");
-            builder.AppendLine(",,,,,,,,,,,");
+            builder.Append(",,,,,,,,,");
+            builder.Append(',');
+            builder.Append(tag.DefaultValue);
+            builder.AppendLine(",");
         }
 
         return builder.ToString();
@@ -672,12 +690,18 @@ public sealed class TagDialog : Form
 {
     private readonly TextBox _nameBox;
     private readonly ComboBox _dataTypeBox;
+    private readonly TextBox _defaultValueBox;
 
     public TagDialog()
+        : this("New Tag", string.Empty, TagDataType.String, string.Empty)
     {
-        Text = "New Tag";
+    }
+
+    public TagDialog(string title, string name, TagDataType dataType, string defaultValue)
+    {
+        Text = title;
         Width = 360;
-        Height = 200;
+        Height = 250;
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -692,7 +716,8 @@ public sealed class TagDialog : Form
 
         _nameBox = new TextBox
         {
-            Dock = DockStyle.Top
+            Dock = DockStyle.Top,
+            Text = name
         };
 
         var dataTypeLabel = new Label
@@ -708,7 +733,24 @@ public sealed class TagDialog : Form
             DropDownStyle = ComboBoxStyle.DropDownList
         };
         _dataTypeBox.Items.AddRange(Enum.GetNames(typeof(TagDataType)));
-        _dataTypeBox.SelectedIndex = 0;
+        _dataTypeBox.SelectedItem = dataType.ToString();
+        if (_dataTypeBox.SelectedItem == null)
+        {
+            _dataTypeBox.SelectedIndex = 0;
+        }
+
+        var defaultValueLabel = new Label
+        {
+            Text = "Default value:",
+            Dock = DockStyle.Top,
+            Height = 24
+        };
+
+        _defaultValueBox = new TextBox
+        {
+            Dock = DockStyle.Top,
+            Text = defaultValue
+        };
 
         var buttonPanel = new FlowLayoutPanel
         {
@@ -723,6 +765,8 @@ public sealed class TagDialog : Form
         buttonPanel.Controls.Add(cancelButton);
 
         Controls.Add(buttonPanel);
+        Controls.Add(_defaultValueBox);
+        Controls.Add(defaultValueLabel);
         Controls.Add(_dataTypeBox);
         Controls.Add(dataTypeLabel);
         Controls.Add(_nameBox);
@@ -737,6 +781,8 @@ public sealed class TagDialog : Form
     public TagDataType SelectedDataType => Enum.TryParse<TagDataType>(_dataTypeBox.SelectedItem?.ToString(), out var value)
         ? value
         : TagDataType.String;
+
+    public string DefaultValue => _defaultValueBox.Text.Trim();
 }
 
 public sealed class HierarchyNode
@@ -744,6 +790,7 @@ public sealed class HierarchyNode
     public string Name { get; init; } = string.Empty;
     public bool IsFolder { get; init; }
     public TagDataType DataType { get; init; }
+    public string DefaultValue { get; init; } = string.Empty;
     public List<HierarchyNode> Children { get; init; } = new();
 
     public static HierarchyNode FromTreeNode(TreeNode node)
@@ -753,7 +800,8 @@ public sealed class HierarchyNode
         {
             Name = metadata?.Name ?? node.Text,
             IsFolder = metadata?.IsFolder ?? true,
-            DataType = metadata?.DataType ?? TagDataType.String
+            DataType = metadata?.DataType ?? TagDataType.String,
+            DefaultValue = metadata?.DefaultValue ?? string.Empty
         };
 
         foreach (TreeNode child in node.Nodes)
@@ -766,7 +814,7 @@ public sealed class HierarchyNode
 
     public TreeNode ToTreeNode()
     {
-        var metadata = IsFolder ? NodeMetadata.Folder(Name) : NodeMetadata.Tag(Name, DataType);
+        var metadata = IsFolder ? NodeMetadata.Folder(Name) : NodeMetadata.Tag(Name, DataType, DefaultValue);
         var node = new TreeNode(Name)
         {
             Tag = metadata
